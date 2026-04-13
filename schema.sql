@@ -60,3 +60,22 @@ CREATE TABLE IF NOT EXISTS conversations (
 
 -- Habilitar Realtime para mensagens (opcional)
 -- ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
+
+-- 6. Tabela de Sessões SMClick
+CREATE TABLE IF NOT EXISTS smclick_sessions (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    smclick_id TEXT NOT NULL UNIQUE,
+    phone TEXT,
+    is_human_attending BOOLEAN DEFAULT false,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- 7. Tabela de Mensagens SMClick
+CREATE TABLE IF NOT EXISTS smclick_messages (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    session_id UUID REFERENCES smclick_sessions(id) ON DELETE CASCADE,
+    role TEXT CHECK (role IN ('user', 'bot', 'human')),
+    content TEXT NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
