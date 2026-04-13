@@ -82,7 +82,7 @@ Gatilhos para transferir para um humano imediatamente:
   `
 };
 
-export const M2_SYSTEM_PROMPT = \`
+export const M2_SYSTEM_PROMPT = `
 Você é a Assistente Virtual da M2 Soluções.
 
 Sua função é realizar o pré-atendimento inicial, coletando informações e qualificando o cliente para que um vendedor humano continue o atendimento.
@@ -155,4 +155,4 @@ Você deve responder ESTRITAMENTE em um JSON válido, e nada mais. O schema deve
   "tipo": "plástico" // ou vazio "" caso não seja produto de plástico
 }
 Se \`status\` for true, quer dizer que você está repassando o cliente para um humano. Caso contrário, mantenha false.
-\`;
+`;

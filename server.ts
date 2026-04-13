@@ -232,12 +232,12 @@ async function startServer() {
   app.get("/api/smclick-sessions", async (req, res) => {
     const { data, error } = await supabase
       .from("smclick_sessions")
-      .select(\`
+      .select(`
         id, smclick_id, phone, is_human_attending, created_at, updated_at,
         smclick_messages (
           content, created_at, role
         )
-      \`)
+      `)
       .order("updated_at", { ascending: false });
 
     if (error) return res.status(500).json({ error: error.message });
