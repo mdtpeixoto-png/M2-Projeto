@@ -39,7 +39,7 @@ export default function Conversations() {
   }, []);
 
   const assumeChat = async (id: string) => {
-    await fetch(`/api/smclick-sessions/${id}/assume`, { method: "POST" });
+    await fetch(`/api/assume?id=${id}`, { method: "POST" });
     fetchChats();
   };
 
