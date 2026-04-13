@@ -29,8 +29,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { agent_name, agent_persona, agent_rules } = req.body;
     const { error } = await supabase
       .from('system_config')
-      .update({ agent_name, agent_persona, agent_rules })
-      .eq('id', 'primary');
+      .upsert({ id: 'primary', agent_name, agent_persona, agent_rules });
 
     if (error) return res.status(500).json({ error: error.message });
     return res.status(200).json({ success: true });
