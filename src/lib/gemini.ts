@@ -17,7 +17,8 @@ export type AIResponse = {
 
 export async function processCustomerMessage(
   history: { role: "user" | "bot" | "human"; content: string }[],
-  latestMessage: string
+  latestMessage: string,
+  customSettings?: { rules?: string; persona?: string }
 ): Promise<AIResponse | null> {
   try {
     // Montando o histórico no padrão Gemini (user e model)
@@ -32,11 +33,19 @@ export async function processCustomerMessage(
       parts: [{ text: latestMessage }],
     });
 
+    let extraPrompt = "";
+    if (customSettings?.rules) {
+      extraPrompt += `\n<regras_adicionais>\n${customSettings.rules}\n</regras_adicionais>`;
+    }
+    if (customSettings?.persona) {
+      extraPrompt += `\nO Tonalidade da IA deve ser adaptada para: ${customSettings.persona}`;
+    }
+
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash", // Utilizando Gemini
       contents,
       config: {
-        systemInstruction: M2_SYSTEM_PROMPT,
+        systemInstruction: M2_SYSTEM_PROMPT + extraPrompt,
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,

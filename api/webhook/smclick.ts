@@ -3,10 +3,6 @@ import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import { processCustomerMessage } from '../../src/lib/gemini';
 
-const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseKey = process.env.SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS Basics
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -17,6 +13,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).send('Method Not Allowed');
 
   try {
+    const supabaseUrl = process.env.SUPABASE_URL || "";
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || "";
+    
+    if (!supabaseUrl || !supabaseKey) {
+      console.error("Missing Supabase credentials");
+      return res.status(500).json({ error: "Missing Supabase credentials in Vercel Env" });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
     const infos = body?.infos?.chat || body?.chat; // fallback para flexibilidade do body
 
@@ -73,8 +78,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // re-ordena o tempo do mais velho pro mais novo
     const pastMessages = historyData ? historyData.reverse().slice(0, -1) : [];
     
-    // 4. Aciona AI
-    const aiRes = await processCustomerMessage(pastMessages as any, text);
+    // 4. Buscar configs adicionais de Personalidade e API
+    const { data: config } = await supabase.from("system_config").select("*").eq("id", "primary").maybeSingle();
+    const customRules = config?.agent_rules;
+    const customPersona = config?.agent_persona;
+
+    // 5. Aciona AI
+    const aiRes = await processCustomerMessage(pastMessages as any, text, { rules: customRules, persona: customPersona });
 
     if (aiRes) {
       // Registrar no bd
@@ -84,8 +94,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         content: aiRes.resumo
       });
 
-      // Puxa token da db primary
-      const { data: config } = await supabase.from("system_config").select("smclick_api_key").eq("id", "primary").maybeSingle();
       const smclickApikey = config?.smclick_api_key || process.env.SMCLICK_API_KEY || "";
 
       const headers = { 

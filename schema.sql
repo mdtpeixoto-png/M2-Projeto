@@ -20,6 +20,9 @@ CREATE TABLE IF NOT EXISTS system_config (
     imap_port TEXT DEFAULT '993',
     imap_user TEXT,
     imap_pass TEXT,
+    agent_name TEXT DEFAULT 'M2 Assistant',
+    agent_persona TEXT DEFAULT 'profissional',
+    agent_rules TEXT,
     updated_at TIMESTAMPTZ DEFAULT NOW(),
     CONSTRAINT one_row_only CHECK (id = 'primary')
 );

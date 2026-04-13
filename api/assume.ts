@@ -1,14 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = process.env.SUPABASE_URL || "";
-const supabaseKey = process.env.SUPABASE_ANON_KEY || "";
-const supabase = createClient(supabaseUrl, supabaseKey);
-
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   res.setHeader('Access-Control-Allow-Origin', '*');
 
   if (req.method === 'POST') {
+    const supabaseUrl = process.env.SUPABASE_URL || "";
+    const supabaseKey = process.env.SUPABASE_ANON_KEY || "";
+    if (!supabaseUrl || !supabaseKey) return res.status(500).json({ error: "Missing DB" });
+    const supabase = createClient(supabaseUrl, supabaseKey);
     const id = req.query.id as string;
     if (!id) return res.status(400).json({ error: "Missing id parameter" });
 
