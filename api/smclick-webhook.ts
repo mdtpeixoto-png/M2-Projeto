@@ -3,13 +3,176 @@ import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import { GoogleGenAI, Type } from "@google/genai";
 
-const M2_SYSTEM_PROMPT = `Você é M2, um assistente de atendimento virtual especializado para uma empresa de venda de soluções em plásticos. Seu papel é:1. Receber mensagens de clientes via WhatsApp e respondê-las de forma ágil e cordial.2. Analisar a necessidade do cliente e oferecer as melhores soluções em produtos plásticos.3. Identificar quando é necessário transferir a conversa para um atendente humano (especialmente para compras de grande volume, orçamentos complexos ou reclamações).4. Manter um tom profissional, empático e orientada a soluções.Respostas: Suas respostas devem ser em JSON com o formato:{"resumo": "texto da resposta ao cliente", "status": true/false, "tipo": "categoria"}`;
+const M2_SYSTEM_PROMPT = `Você é a Assistente Virtual da M2 Soluções.
+
+Sua função é realizar o pré-atendimento inicial, coletando informações e qualificando o cliente para que um vendedor humano continue o atendimento.
+
+A empresa vende apenas produtos, nunca serviços.
+
+IDENTIDADE DA EMPRESA:
+- Nome: M2 Sinalização e Produtos Plásticos
+- Ano de fundação: 2016
+- Missão: Oferecer soluções em sinalização viária e produtos plásticos com qualidade, rapidez e eficiência, ajudando clientes a resolver problemas operacionais com segurança e durabilidade.
+- Valores: Compromisso com o cliente, Compradores técnicos e operacionais, Qualidade e durabilidade dos produtos, Transparência nas negociações.
+- Diferenciais: 10 anos no mercado, mais de 10 mil clientes atendidos; Produção própria com excelente custo-benefício; Atendimento rápido; Especialização em Sinalização viária, pallets Plásticos e Pallets de contenção; Capacidade de atender volume e demandas específicas; Conhecimento técnico aplicado (não vende apenas o produto, vende solução).
+
+PERSONALIDADE:
+- Tom: Profissional, direto, consultivo
+- Linguagem: Médio (não muito técnico, não muito informal)
+- Emojis: NÃO USE EMOJIS
+- Estilos: Direta, Consultiva, Persuasiva, Técnica
+
+FLUXO DE ATENDIMENTO:
+1. SAUDAÇÃO (primeiro contato): "Olá, tudo bem? Aqui é da M2 Soluções. Como posso te ajudar hoje?"
+2. ANÁLISE DA MENSAGEM DO CLIENTE: Analise o que o cliente está solicitando e responda de forma contextualizada. Nãosaudações perguntas de qualificação imediatamente.
+3. Se o cliente demonstra interesse em algum produto, faça perguntas de qualificação uma de cada vez.
+4. PERGUNTAS DE QUALIFICAÇÃO (apenas se necessário):
+   - "Qual produto você precisa?"
+   - "Qual a quantidade aproximada?"
+   - "Já utiliza esse tipo de produto?"
+   - "Com qual frequência compra esse produto?"
+   - "É para uso da sua empresa?" (Descobrir indiretamente se é cliente final, revenda ou instalador)
+
+FAQ:
+- Emite nota fiscal: "Sim, todas as vendas são feitas com nota fiscal."
+- Prazo de entrega: "Depende do produto e quantidade, sob consulta pois estoques variam."
+- Atende Brasil: "Sim, fazemos envio para todo o Brasil."
+- Desconto por volume: "Sim, quanto maior o volume, melhor conseguimos ajustar o preço."
+
+CENÁRIOS:
+- Cliente irritado: Transferir com calma
+- Cliente indeciso: "Posso te indicar a melhor opção"
+- Sem orçamento: "Posso ajustar uma opção"
+- Com pressa: "Me informa quantidade e cidade"
+
+GATILHOS PARA TRANSFERÊNCIA PARA HUMANO:
+- Preço, frete, prazo, reclamação, cliente irritado, dúvida técnica avançada, grande volume
+
+REGRAS GERAIS:
+- Conduzir para venda
+- Evitar conversa longa
+- Nunca deixar cliente sem resposta
+- Puxar para próximo passo
+- Faça apenas uma pergunta por vez
+
+IMPORTANTE:
+- NUNCA responda como "especialista em soluções plásticas" no primeiro contato
+- Analise a mensagem do cliente e responda de forma contextualizada
+- Nunca invente informações fora do escopo fornecido
+- Nunca use emojis
+
+AÇÕES ESPECÍFICAS:
+- Se identificar produto de plástico (pallets, lixeiras, cones, etc), informe no JSON "tipo": "plástico"
+- Sempre que um cliente quiser um produto de resina ou injetada, ofereça as colas em catálogo
+- Sempre que um cliente solicitar "bate_rodas", pergunte a quantidade por vagas
+
+RESPOSTA OBRIGATÓRIA (JSON):
+{
+  "resumo": "Sua mensagem ao cliente",
+  "status": false,
+  "tipo": "plástico" ou ""
+}
+
+Se status=true, você está transferindo para um humano.`;
 
 type AIResponse = { resumo: string; status: boolean; tipo: string };
+
+async function buildSystemPrompt(supabase: any): Promise<string> {
+  try {
+    let identidade = "", personalidade = "", fluxo = "", faq = "", cenarios = "", transferencia = "", regras = "";
+
+    const { data: ident } = await supabase.from("ia_identidade").select("*").limit(1);
+    if (ident?.[0]) {
+      const i = ident[0];
+      identidade = `IDENTIDADE DA EMPRESA:\nNome: ${i.nome}\nFundação: ${i.ano_fundacao}\nMissão: ${i.missao}\nVisão: ${i.visao}\nValores: ${i.valores}\nDiferenciais: ${i.diferenciais}\nPúblicos: ${i.publicos}`;
+    }
+
+    const { data: pers } = await supabase.from("ia_personalidade").select("*").limit(1);
+    if (pers?.[0]) {
+      const p = pers[0];
+      personalidade = `PERSONALIDADE:\nTom: ${p.tom}\nLinguagem: ${p.linguagem}\nEmojis: ${p.emojis}\nEstilos: ${p.estilos}`;
+    }
+
+    const { data: fluxoData } = await supabase.from("ia_fluxo_atendimento").select("*").order("ordem");
+    if (fluxoData?.length) {
+      fluxo = "FLUXO DE ATENDIMENTO:\n" + fluxoData.map((f: any) => `- [${f.etapa}] ${f.mensagem}${f.observacoes ? ` (${f.observacoes})` : ''}`).join("\n");
+    }
+
+    const { data: faqData } = await supabase.from("ia_faq").select("*");
+    if (faqData?.length) {
+      faq = "FAQ:\n" + faqData.map((f: any) => `- ${f.pergunta}: ${f.resposta}`).join("\n");
+    }
+
+    const { data: cenData } = await supabase.from("ia_cenarios").select("*");
+    if (cenData?.length) {
+      cenarios = "CENÁRIOS:\n" + cenData.map((c: any) => `- ${c.cenario}: ${c.resposta}`).join("\n");
+    }
+
+    const { data: transData } = await supabase.from("ia_transferencia").select("*");
+    if (transData?.length) {
+      transferencia = "GATILHOS PARA TRANSFERÊNCIA:\n" + transData.map((t: any) => `- ${t.gatilho}: ${t.acao}`).join("\n");
+    }
+
+    const { data: regrasData } = await supabase.from("ia_regras").select("*");
+    if (regrasData?.length) {
+      regras = "REGRAS GERAIS:\n" + regrasData.map((r: any) => `- ${r.regra}`).join("\n");
+    }
+
+    const hasData = identidade || personalidade || fluxo || faq || cenarios || transferencia || regras;
+    if (!hasData) {
+      return M2_SYSTEM_PROMPT;
+    }
+
+    return `Você é a Assistente Virtual da M2 Soluções.
+
+Sua função é realizar o pré-atendimento inicial, coletando informações e qualificando o cliente para que um vendedor humano continue o atendimento.
+
+A empresa vende apenas produtos, nunca serviços.
+
+${identidade}
+
+${personalidade}
+
+${fluxo}
+
+${faq}
+
+${cenarios}
+
+${transferencia}
+
+${regras}
+
+REGRAS DE COMPORTAMENTO:
+- Faça apenas uma pergunta por vez
+- Nunca use emojis
+- Nunca invente informações fora do escopo fornecido
+- Nunca responda como "especialista em soluções plásticas" no primeiro contato
+- Analise a mensagem do cliente e responda de forma contextualizada
+
+AÇÕES ESPECÍFICAS:
+- Se identificar produto de plástico (pallets, lixeiras, cones, etc), informe no JSON "tipo": "plástico"
+- Sempre que um cliente quiser um produto de resina ou injetada, ofereça as colas em catálogo
+- Sempre que um cliente solicitar "bate_rodas", pergunte a quantidade por vagas
+
+RESPOSTA OBRIGATÓRIA (JSON):
+{
+  "resumo": "Sua mensagem ao cliente",
+  "status": false,
+  "tipo": "plástico" ou ""
+}
+
+Se status=true, você está transferindo para um humano.`;
+  } catch (error) {
+    console.error("Erro ao buscar base de conhecimento, usando fallback:", error);
+    return M2_SYSTEM_PROMPT;
+  }
+}
 
 async function processCustomerMessage(
   history: { role: string; content: string }[],
   latestMessage: string,
+  systemPrompt: string,
   customSettings?: { rules?: string; persona?: string }
 ): Promise<AIResponse | null> {
   const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
@@ -28,7 +191,7 @@ async function processCustomerMessage(
       model: "gemini-2.5-flash",
       contents,
       config: {
-        systemInstruction: M2_SYSTEM_PROMPT + extraPrompt,
+        systemInstruction: systemPrompt + extraPrompt,
         responseMimeType: "application/json",
         responseSchema: { type: Type.OBJECT, properties: { resumo: { type: Type.STRING }, status: { type: Type.BOOLEAN }, tipo: { type: Type.STRING } }, required: ["resumo", "status", "tipo"] },
       },
@@ -96,6 +259,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     await supabase.from("smclick_messages").insert({ session_id: session.id, role, content: text });
     console.log("12. Mensagem salva");
 
+    if (text.toLowerCase().trim() === "reset ia now") {
+      console.log("12b. Comando reset IA detectado - limpando dados da sessao");
+      await supabase.from("smclick_messages").delete().eq("session_id", session.id);
+      await supabase.from("smclick_sessions").update({ is_human_attending: false }).eq("id", session.id);
+      return res.status(200).json({ status: "success", message: "Session reset" });
+    }
+
     if (fromMe || session.is_human_attending) return res.status(200).json({ status: "success", message: "Recorded" });
 
     const { data: historyData } = await supabase.from("smclick_messages").select("role, content").eq("session_id", session.id).order("created_at", { ascending: false }).limit(15);
@@ -105,9 +275,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { data: config } = await supabase.from("system_config").select("*").eq("id", "primary").maybeSingle();
     console.log("14. Config carregada:", !!config);
 
-    console.log("15. Chamando IA...");
-    const aiRes = await processCustomerMessage(pastMessages as any, text, { rules: config?.agent_rules, persona: config?.agent_persona });
-    console.log("16. IA respondeu:", !!aiRes);
+    console.log("15. Buscando base de conhecimento do banco...");
+    const systemPrompt = await buildSystemPrompt(supabase);
+    console.log("15b. Prompt base construido, tamanho:", systemPrompt.length);
+
+    console.log("16. Chamando IA...");
+    const aiRes = await processCustomerMessage(pastMessages as any, text, systemPrompt, { rules: config?.agent_rules, persona: config?.agent_persona });
+    console.log("17. IA respondeu:", !!aiRes);
 
     if (aiRes) {
       await supabase.from("smclick_messages").insert({ session_id: session.id, role: "bot", content: aiRes.resumo });

@@ -1,9 +1,9 @@
--- Script para configurar o banco de dados no Supabase
+-- =====================================================
+-- TABELAS DE CONHECIMENTO DA IA - M2 SOLUÇÕES
+-- Execute este script no Supabase para criar as tabelas
+-- =====================================================
 
--- 1. Habilitar extensões necessárias (opcional)
--- CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
-
--- Tabelas de Conhecimento da IA (para uso dinâmico pela IA)
+-- Tabela: Identidade da Empresa
 CREATE TABLE IF NOT EXISTS ia_identidade (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     nome TEXT NOT NULL,
@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS ia_identidade (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela: Personalidade da IA
 CREATE TABLE IF NOT EXISTS ia_personalidade (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tom TEXT,
@@ -26,6 +27,7 @@ CREATE TABLE IF NOT EXISTS ia_personalidade (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela: Fluxo de Atendimento
 CREATE TABLE IF NOT EXISTS ia_fluxo_atendimento (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     etapa TEXT,
@@ -36,6 +38,7 @@ CREATE TABLE IF NOT EXISTS ia_fluxo_atendimento (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela: Critérios de Qualificação
 CREATE TABLE IF NOT EXISTS ia_qualificacao (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     criterio TEXT,
@@ -43,6 +46,7 @@ CREATE TABLE IF NOT EXISTS ia_qualificacao (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela: Gatilhos de Transferência
 CREATE TABLE IF NOT EXISTS ia_transferencia (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     gatilho TEXT NOT NULL,
@@ -50,6 +54,7 @@ CREATE TABLE IF NOT EXISTS ia_transferencia (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela: Mensagens de Follow-up
 CREATE TABLE IF NOT EXISTS ia_follow_up (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     tipo TEXT,
@@ -57,6 +62,7 @@ CREATE TABLE IF NOT EXISTS ia_follow_up (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela: FAQ (Perguntas Frequentes)
 CREATE TABLE IF NOT EXISTS ia_faq (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     pergunta TEXT NOT NULL,
@@ -64,6 +70,7 @@ CREATE TABLE IF NOT EXISTS ia_faq (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela: Cenários de Comportamento
 CREATE TABLE IF NOT EXISTS ia_cenarios (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     cenario TEXT NOT NULL,
@@ -71,27 +78,36 @@ CREATE TABLE IF NOT EXISTS ia_cenarios (
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Tabela: Regras Gerais
 CREATE TABLE IF NOT EXISTS ia_regras (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     regra TEXT NOT NULL,
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Inserir dados iniciais nas tabelas de conhecimento
-INSERT INTO ia_identidade (nome, ano_fundacao, missao, visao, valores, diferenciais, publicos, problemas_resolvidos)
-VALUES ('M2 Sinalização e Produtos Plásticos', '2016', 
-'Oferecer soluções em sinalização viária e produtos plásticos com qualidade, rapidez e eficiência, ajudando clientes a resolver problemas operacionais com segurança e durabilidade.',
-'Ser referência nacional em Produtos Plásticos e sinalização viária, com forte presença e durabilidade.',
-'Compromisso com o cliente; Compradores técnicos e operacionais; Qualidade e durabilidade dos produtos; Transparência nas negociações.',
-'1. 10 anos no mercado, mais de 10 mil clientes atendidos e alto nível de satisfação | 2. Produção própria com excelente custo-benefício | 3. Atendimento rápido | 4. Especialização em Sinalização viária, pallets Plásticos e Pallets de contenção | 5. Capacidade de atender volume e demandas específicas | 6. Conhecimento técnico aplicado',
-'Empresas de logística e indústria; Construtoras; Empresas de sinalização viária; Condomínios e administradoras; Distribuidores e revendas; Compradores técnicos e operacionais',
-'Falta de segurança viária; Armazenamento inadequado de produtos; Baixa durabilidade de concorrentes; Falta de padrão; Falta de compromisso de concorrentes; Custo alto')
-ON CONFLICT DO NOTHING;
+-- =====================================================
+-- DADOS INICIAIS
+-- =====================================================
 
+-- Dados da Identidade
+INSERT INTO ia_identidade (nome, ano_fundacao, missao, visao, valores, diferenciais, publicos, problemas_resolvidos)
+VALUES (
+    'M2 Sinalização e Produtos Plásticos',
+    '2016',
+    'Oferecer soluções em sinalização viária e produtos plásticos com qualidade, rapidez e eficiência, ajudando clientes a resolver problemas operacionais com segurança e durabilidade.',
+    'Ser referência nacional em Produtos Plásticos e sinalização viária, com forte presença e durabilidade.',
+    'Compromisso com o cliente | Compradores técnicos e operacionais | Qualidade e durabilidade dos produtos | Transparência nas negociações',
+    '1. 10 anos no mercado, mais de 10 mil clientes atendidos e alto nível de satisfação | 2. Produção própria com excelente custo-benefício (controle de qualidade) | 3. Atendimento rápido | 4. Especialização em Sinalização viária, pallets Plásticos e Pallets de contenção | 5. Capacidade de atender volume e demandas específicas | 6. Conhecimento técnico aplicado (não vende apenas o produto, vende solução)',
+    'Empresas de logística e indústria | Construtoras | Empresas de sinalização viária | Condomínios e administradoras | Distribuidores e revendas | Compradores técnicos e operacionais',
+    'Falta de segurança viária | Armazenamento inadequado de produtos (risco ambiental) | Baixa durabilidade de concorrentes | Falta de padrão | Falta de compromisso de concorrentes | Custo alto (custo de fábrica)'
+) ON CONFLICT DO NOTHING;
+
+-- Dados da Personalidade
 INSERT INTO ia_personalidade (tom, linguagem, emojis, estilos)
 VALUES ('Profissional, direto, consultivo', 'Médio', 'Não', 'Direta, Consultiva, Persuasiva, Técnica')
 ON CONFLICT DO NOTHING;
 
+-- Dados do Fluxo de Atendimento
 INSERT INTO ia_fluxo_atendimento (etapa, tipo, mensagem, observacoes, ordem) VALUES
 ('inicio', 'saudacao', 'Olá, tudo bem? Aqui é da M2 Soluções. Como posso te ajudar hoje?', NULL, 1),
 ('inicio', 'pergunta', 'Você está procurando qual tipo de produto ou solução?', NULL, 2),
@@ -102,6 +118,7 @@ INSERT INTO ia_fluxo_atendimento (etapa, tipo, mensagem, observacoes, ordem) VAL
 ('qualificacao', 'pergunta', 'É para uso da sua empresa?', 'Descobrir indiretamente se é cliente final, revenda ou instalador. Evitar perguntar diretamente se é revenda.', 7)
 ON CONFLICT DO NOTHING;
 
+-- Dados de Qualificação
 INSERT INTO ia_qualificacao (criterio, descricao) VALUES
 ('produto_definido', 'Cliente sabe o que quer'),
 ('volume', 'Volume mínimo viável'),
@@ -109,6 +126,7 @@ INSERT INTO ia_qualificacao (criterio, descricao) VALUES
 ('demanda_real', 'Compra recorrente ou obra')
 ON CONFLICT DO NOTHING;
 
+-- Dados de Transferência
 INSERT INTO ia_transferencia (gatilho, acao) VALUES
 ('preço', 'Transferir para vendedor'),
 ('frete', 'Transferir para vendedor'),
@@ -119,6 +137,7 @@ INSERT INTO ia_transferencia (gatilho, acao) VALUES
 ('grande volume', 'Transferir para vendedor')
 ON CONFLICT DO NOTHING;
 
+-- Dados de Follow-up
 INSERT INTO ia_follow_up (tipo, mensagem) VALUES
 ('reativacao', 'Fala [nome], tudo certo? Vi que você já comprou com a gente. Está precisando de reposição ou algum outro produto?'),
 ('follow1', 'Conseguiu definir a compra referente a proposta que te enviamos?'),
@@ -126,14 +145,16 @@ INSERT INTO ia_follow_up (tipo, mensagem) VALUES
 ('follow3', 'Avaliar os feedbacks do primeiro e segundo follow-up e definir a melhor estratégia')
 ON CONFLICT DO NOTHING;
 
+-- Dados de FAQ
 INSERT INTO ia_faq (pergunta, resposta) VALUES
 ('emite nota fiscal', 'Sim, todas as vendas são feitas com nota fiscal.'),
 ('prazo entrega', 'Depende do produto e da quantidade, sob consulta pois estoques variam.'),
 ('atende brasil', 'Sim, fazemos envio para todo o Brasil. Com frete CIF ou FOB, dependendo do volume e local.'),
-('atende norma', 'Depende do produto, consultar o vendedor. Nossos produtos atendem exigências de qualidade, em alguns casos atende NBR.'),
+('atende norma', 'Depende do produto, consultar o vendedor. Nossos produtos atendem exigências de qualidade, em alguns casos atende NBR (sinalização viária). Pallet de contenção serve para atender exigência de boas práticas ambientais (OSHA).'),
 ('desconto volume', 'Sim, quanto maior o volume, melhor conseguimos ajustar o preço.')
 ON CONFLICT DO NOTHING;
 
+-- Dados de Cenários
 INSERT INTO ia_cenarios (cenario, resposta) VALUES
 ('cliente_irritado', 'Transferir com calma'),
 ('indeciso', 'Posso te indicar a melhor opção'),
@@ -141,89 +162,10 @@ INSERT INTO ia_cenarios (cenario, resposta) VALUES
 ('com_pressa', 'Me informa quantidade e cidade')
 ON CONFLICT DO NOTHING;
 
+-- Dados de Regras
 INSERT INTO ia_regras (regra) VALUES
 ('Conduzir para venda'),
 ('Evitar conversa longa'),
 ('Nunca deixar cliente sem resposta'),
 ('Puxar para próximo passo')
 ON CONFLICT DO NOTHING;
-
--- 2. Tabela de Configurações do Sistema
--- Usamos um ID fixo 'primary' para garantir que exista apenas um registro de configuração global.
-CREATE TABLE IF NOT EXISTS system_config (
-    id TEXT PRIMARY KEY DEFAULT 'primary',
-    supabase_url TEXT,
-    supabase_key TEXT,
-    nectar_api_key TEXT,
-    smclick_api_key TEXT,
-    smclick_api_url TEXT,
-    smtp_host TEXT,
-    smtp_port TEXT DEFAULT '587',
-    smtp_user TEXT,
-    smtp_pass TEXT,
-    imap_host TEXT,
-    imap_port TEXT DEFAULT '993',
-    imap_user TEXT,
-    imap_pass TEXT,
-    agent_name TEXT DEFAULT 'M2 Assistant',
-    agent_persona TEXT DEFAULT 'profissional',
-    agent_rules TEXT,
-    updated_at TIMESTAMPTZ DEFAULT NOW(),
-    CONSTRAINT one_row_only CHECK (id = 'primary')
-);
-
--- Inserir registro inicial vazio se não existir
-INSERT INTO system_config (id) VALUES ('primary') ON CONFLICT DO NOTHING;
-
--- 3. Tabela de Números de WhatsApp (SMClick)
-CREATE TABLE IF NOT EXISTS whatsapp_numbers (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    number TEXT NOT NULL UNIQUE,
-    status TEXT DEFAULT 'Desconectado',
-    user_name TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 4. Tabela de Contatos (Referenciada no server.ts)
-CREATE TABLE IF NOT EXISTS contatos (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    nome TEXT,
-    email TEXT,
-    telefone TEXT,
-    data_fechamento DATE,
-    origem TEXT DEFAULT 'CRM',
-    status TEXT DEFAULT 'Lead',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 5. Tabela de Conversas/Logs (Para o Agente de IA)
-CREATE TABLE IF NOT EXISTS conversations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    contact_id UUID REFERENCES contatos(id),
-    sender TEXT, -- 'agent' ou 'user'
-    message TEXT,
-    channel TEXT DEFAULT 'whatsapp',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Habilitar Realtime para mensagens (opcional)
--- ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
-
--- 6. Tabela de Sessões SMClick
-CREATE TABLE IF NOT EXISTS smclick_sessions (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    smclick_id TEXT NOT NULL UNIQUE,
-    phone TEXT,
-    is_human_attending BOOLEAN DEFAULT false,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- 7. Tabela de Mensagens SMClick
-CREATE TABLE IF NOT EXISTS smclick_messages (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    session_id UUID REFERENCES smclick_sessions(id) ON DELETE CASCADE,
-    role TEXT CHECK (role IN ('user', 'bot', 'human')),
-    content TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,9 @@ export default function Conversations() {
   const [chats, setChats] = useState<any[]>([]);
   const [selectedChat, setSelectedChat] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const [messageInput, setMessageInput] = useState("");
+  const [sending, setSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const fetchChats = async () => {
     try {
@@ -34,13 +37,49 @@ export default function Conversations() {
 
   useEffect(() => {
     fetchChats();
-    const intv = setInterval(fetchChats, 5000); // Polling simple
+    const intv = setInterval(fetchChats, 5000);
     return () => clearInterval(intv);
   }, []);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [selectedChat?.smclick_messages]);
 
   const assumeChat = async (id: string) => {
     await fetch(`/api/assume?id=${id}`, { method: "POST" });
     fetchChats();
+  };
+
+  const sendMessage = async () => {
+    if (!messageInput.trim() || !selectedChat || sending) return;
+    
+    setSending(true);
+    try {
+      const res = await fetch("/api/send-message", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          session_id: selectedChat.id,
+          message: messageInput.trim()
+        })
+      });
+      
+      if (res.ok) {
+        setMessageInput("");
+        fetchChats();
+      }
+    } catch(e) {
+      console.error("Erro ao enviar:", e);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendMessage();
+    }
   };
 
   // garantindo ordem temporal das msgs
@@ -134,34 +173,45 @@ export default function Conversations() {
 
           {/* Messages */}
           <ScrollArea className="flex-1 p-6 bg-slate-50/50">
-            <div className="space-y-6">
-              {messages.map((msg: any, i: number) => (
-                <div
-                  key={i}
-                  className={cn(
-                    "flex flex-col max-w-[80%]",
-                    msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
-                  )}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    {msg.role === "bot" && <Bot className="w-3 h-3 text-blue-600" />}
-                    {msg.role === "human" && <User className="w-3 h-3 text-slate-600" />}
-                    <span className="text-[10px] text-slate-400 font-medium">
-                      {msg.role === "user" ? "Cliente" : msg.role === "bot" ? "M2 IA" : "Vendedor"} • {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                    </span>
-                  </div>
+            <div className="space-y-4">
+              {messages.map((msg: any, i: number) => {
+                const isClient = msg.role === "user";
+                const isBot = msg.role === "bot";
+                const isHuman = msg.role === "human";
+                
+                return (
                   <div
+                    key={i}
                     className={cn(
-                      "px-4 py-2 rounded-2xl text-sm shadow-sm",
-                      msg.role === "user" 
-                        ? "bg-blue-600 text-white rounded-tr-none" 
-                        : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
+                      "flex flex-col max-w-[75%]",
+                      isClient ? "ml-auto items-end" : "mr-auto items-start"
                     )}
                   >
-                    {msg.content}
+                    <div className={cn(
+                      "flex items-center gap-2 mb-1",
+                      isClient ? "flex-row-reverse" : ""
+                    )}>
+                      {isBot && <Bot className="w-4 h-4 text-blue-600" />}
+                      {isClient && <Phone className="w-4 h-4 text-green-600" />}
+                      {isHuman && <User className="w-4 h-4 text-slate-600" />}
+                      <span className="text-[10px] text-slate-400 font-medium">
+                        {isBot ? "M2 IA" : isClient ? "Cliente" : "Vendedor"} • {new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                      </span>
+                    </div>
+                    <div
+                      className={cn(
+                        "px-4 py-2 rounded-2xl text-sm shadow-sm whitespace-pre-wrap",
+                        isClient 
+                          ? "bg-green-600 text-white rounded-tr-none" 
+                          : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
+                      )}
+                    >
+                      {msg.content}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
+              <div ref={messagesEndRef} />
             </div>
           </ScrollArea>
 
@@ -172,8 +222,15 @@ export default function Conversations() {
                 placeholder={selectedChat.is_human_attending ? "Digite sua mensagem..." : "Assuma a conversa para enviar mensagens."} 
                 className="flex-1 bg-slate-50 border-none focus-visible:ring-blue-600" 
                 disabled={!selectedChat.is_human_attending}
+                value={messageInput}
+                onChange={(e) => setMessageInput(e.target.value)}
+                onKeyPress={handleKeyPress}
               />
-              <Button className="bg-blue-600 hover:bg-blue-700" disabled={!selectedChat.is_human_attending}>
+              <Button 
+                className="bg-blue-600 hover:bg-blue-700" 
+                disabled={!selectedChat.is_human_attending || !messageInput.trim() || sending}
+                onClick={sendMessage}
+              >
                 <Send className="w-4 h-4" />
               </Button>
             </div>
