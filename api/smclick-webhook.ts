@@ -280,7 +280,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log("15b. Prompt base construido, tamanho:", systemPrompt.length);
 
     console.log("16. Chamando IA...");
-    const aiRes = await processCustomerMessage(pastMessages as any, text, systemPrompt, { rules: config?.agent_rules, persona: config?.agent_persona });
+    let aiRes = null;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      console.log(`16b. Tentativa ${attempt}/3...`);
+      aiRes = await processCustomerMessage(pastMessages as any, text, systemPrompt, { rules: config?.agent_rules, persona: config?.agent_persona });
+      if (aiRes) break;
+      if (attempt < 3) await new Promise(r => setTimeout(r, 2000));
+    }
     console.log("17. IA respondeu:", !!aiRes);
 
     if (aiRes) {
