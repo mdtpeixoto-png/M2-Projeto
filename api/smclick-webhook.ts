@@ -3,6 +3,15 @@ import { createClient } from '@supabase/supabase-js';
 import axios from 'axios';
 import { GoogleGenAI, Type } from "@google/genai";
 
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const calculateTypingDelay = (text: string) => {
+  const msPerChar = 40; // ~1500 chars/minute
+  const delay = text.length * msPerChar;
+  const jitter = Math.random() * 1000;
+  return Math.min(delay + jitter, 7000); // Cap at 7s for Vercel
+};
+
 const M2_SYSTEM_PROMPT = `Você é a Assistente Virtual da M2 Soluções.
 
 Sua função é realizar o pré-atendimento inicial, coletando informações e qualificando o cliente para que um vendedor humano continue o atendimento.
@@ -292,7 +301,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     console.log("17. IA respondeu:", !!aiRes);
 
     if (aiRes) {
+      // DEDUPLICAÇÃO: Verifica se a mensagem é igual à última do bot
+      const lastBotMessage = historyData?.find(m => m.role === "bot");
+      if (lastBotMessage && lastBotMessage.content === aiRes.resumo) {
+        console.log("17b. Mensagem duplicada detectada, cancelando envio.");
+        return res.status(200).json({ status: "success", message: "Duplicate suppressed" });
+      }
+
       await supabase.from("smclick_messages").insert({ session_id: session.id, role: "bot", content: aiRes.resumo });
+
+      // DELAY HUMANIZADO
+      const delay = calculateTypingDelay(aiRes.resumo);
+      console.log(`17c. Aguardando ${delay}ms para simular digitação...`);
+      await sleep(delay);
 
       const smclickApikey = config?.smclick_api_key || process.env.SMCLICK_API_KEY || "";
       const headers = { "Content-Type": "application/json", "x-api-key": smclickApikey };

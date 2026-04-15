@@ -168,5 +168,6 @@ INSERT INTO ia_regras (regra) VALUES
 ('Evitar conversa longa'),
 ('Nunca deixar cliente sem resposta'),
 ('Puxar para próximo passo'),
-('NUNCA pergunte algo que o cliente já respondeu ou que pode ser inferido do contexto. Sempre verifique o histórico antes de cada pergunta.')
+('NUNCA pergunte algo que o cliente já respondeu ou que pode ser inferido do contexto. Sempre verifique o histórico antes de cada pergunta.'),
+('Para tachões de uso noturno, sempre oferecer opções Monodirecional ou Bidirecional explicando a diferença.')
 ON CONFLICT DO NOTHING;
