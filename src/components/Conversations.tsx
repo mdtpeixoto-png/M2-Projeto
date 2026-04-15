@@ -16,17 +16,14 @@ export default function Conversations() {
   const [sending, setSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchChats = async () => {
+  const fetchChats = async (skipSelection = false) => {
     try {
       const res = await fetch("/api/smclick-sessions");
       if (!res.ok) throw new Error("Erro ao buscar");
       const data = await res.json();
       setChats(data);
-      if (!selectedChat && data.length > 0) {
+      if (!skipSelection && !selectedChat && data.length > 0) {
         setSelectedChat(data[0]);
-      } else if (selectedChat) {
-        const updated = data.find((c: any) => c.id === selectedChat.id);
-        if (updated) setSelectedChat(updated);
       }
     } catch(e) {
       console.error(e);
@@ -36,8 +33,8 @@ export default function Conversations() {
   };
 
   useEffect(() => {
-    fetchChats();
-    const intv = setInterval(fetchChats, 5000);
+    fetchChats(false);
+    const intv = setInterval(() => fetchChats(true), 5000);
     return () => clearInterval(intv);
   }, []);
 
@@ -184,12 +181,12 @@ export default function Conversations() {
                     key={i}
                     className={cn(
                       "flex flex-col max-w-[75%]",
-                      isClient ? "ml-auto items-end" : "mr-auto items-start"
+                      isBot || isHuman ? "ml-auto items-end" : "mr-auto items-start"
                     )}
                   >
                     <div className={cn(
                       "flex items-center gap-2 mb-1",
-                      isClient ? "flex-row-reverse" : ""
+                      isBot || isHuman ? "flex-row-reverse" : ""
                     )}>
                       {isBot && <Bot className="w-4 h-4 text-blue-600" />}
                       {isClient && <Phone className="w-4 h-4 text-green-600" />}
@@ -201,9 +198,9 @@ export default function Conversations() {
                     <div
                       className={cn(
                         "px-4 py-2 rounded-2xl text-sm shadow-sm whitespace-pre-wrap",
-                        isClient 
-                          ? "bg-green-600 text-white rounded-tr-none" 
-                          : "bg-white text-slate-800 border border-slate-100 rounded-tl-none"
+                        isBot || isHuman
+                          ? "bg-blue-600 text-white rounded-tl-none"
+                          : "bg-white text-slate-800 border border-slate-100 rounded-tr-none"
                       )}
                     >
                       {msg.content}
