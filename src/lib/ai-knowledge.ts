@@ -1,4 +1,4 @@
-export const M2_KNOWLEDGE_BASE = {
+export const M2_KNOWLE 2DGE_BASE = {
   identidade_empresa: `
 Nome da empresa: M2 Sinalização e Produtos Plásticos
 Ano de fundação: 2016
