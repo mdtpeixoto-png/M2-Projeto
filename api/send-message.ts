@@ -32,7 +32,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .eq("id", session_id)
       .maybeSingle();
 
-    if (error || !session) {
+    if (sessionError || !session) {
       return res.status(404).json({ error: "Sessão não encontrada" });
     }
 
