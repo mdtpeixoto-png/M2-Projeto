@@ -169,5 +169,6 @@ INSERT INTO ia_regras (regra) VALUES
 ('Nunca deixar cliente sem resposta'),
 ('Puxar para próximo passo'),
 ('NUNCA pergunte algo que o cliente já respondeu ou que pode ser inferido do contexto. Sempre verifique o histórico antes de cada pergunta.'),
-('Para tachões de uso noturno, sempre oferecer opções Monodirecional ou Bidirecional explicando a diferença.')
+('Para tachões de uso noturno, sempre oferecer opções Monodirecional ou Bidirecional explicando a diferença.'),
+('Para o cálculo de tachões (tartarugas) usados como redutores de velocidade, considere sempre 4 unidades por metro linear (cada tachão tem 25cm). Não considere nenhum espaçamento entre eles, a menos que o cliente solicite explicitamente. Exemplo: para 50 metros, são necessários 200 tachões.')
 ON CONFLICT DO NOTHING;
