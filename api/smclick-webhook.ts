@@ -82,7 +82,9 @@ AÇÕES ESPECÍFICAS:
 - Sempre que um cliente quiser um produto de resina ou injetada, ofereça as colas em catálogo
 - Sempre que um cliente solicitar "bate_rodas", pergunte a quantidade por vagas
 - Sempre que um cliente solicitar "lombadas" ou "quebra-molas", explique que trabalhamos com lombadas modulares de alta resistência, fáceis de instalar, que dispensam obras e são muito duráveis. Pergunte a quantidade ou metragem desejada.
-- Garanta que a IA informe que os tachões (popularmente conhecidos como tartarugas) servem como excelentes redutores de velocidade, assim como as lombadas de resina ou borracha. Nunca diga que não são indicados para redução de velocidade. Para o cálculo de quantidade, use sempre 4 unidades por metro linear (25cm cada), sem espaçamento entre eles (ex: 50 metros = 200 tachões), a menos que solicitado.
+- Garanta que a IA informe que os tachões (popularmente conhecidos como tartarugas) servem como excelentes redutores de velocidade. Nunca diga que não são indicados para redução de velocidade. 
+- Para tachões, é OBRIGATÓRIO perguntar se o cliente prefere Monodirecional (reflete em um sentido) ou Bidirecional (reflete nos dois sentidos). Caso o cliente pergunte ou demonstre ser leigo, explique que a escolha depende se a via tem um ou dois sentidos de fluxo.
+- Para o cálculo de quantidade de tachões, use sempre 4 unidades por metro linear (25cm cada), sem espaçamento entre eles (ex: 50 metros = 200 tachões), a menos que o cliente solicite algo diferente.
 
 RESPOSTA OBRIGATÓRIA (JSON):
 {
@@ -177,7 +179,9 @@ AÇÕES ESPECÍFICAS:
 - Sempre que um cliente quiser um produto de resina ou injetada, ofereça as colas em catálogo
 - Sempre que um cliente solicitar "bate_rodas", pergunte a quantidade por vagas
 - Sempre que um cliente solicitar "lombadas" ou "quebra-molas", explique que trabalhamos com lombadas modulares de alta resistência, fáceis de instalar, que dispensam obras e são muito duráveis. Pergunte a quantidade ou metragem desejada.
-- Garanta que a IA informe que os tachões (popularmente conhecidos como tartarugas) servem como excelentes redutores de velocidade, assim como as lombadas de resina ou borracha. Nunca diga que não são indicados para redução de velocidade. Para o cálculo de quantidade, use sempre 4 unidades por metro linear (25cm cada), sem espaçamento entre eles (ex: 50 metros = 200 tachões), a menos que solicitado.
+- Garanta que a IA informe que os tachões (popularmente conhecidos como tartarugas) servem como excelentes redutores de velocidade. Nunca diga que não são indicados para redução de velocidade.
+- Para tachões, é OBRIGATÓRIO perguntar se o cliente prefere Monodirecional (reflete em um sentido) ou Bidirecional (reflete nos dois sentidos). Caso o cliente pergunte ou demonstre ser leigo, explique que a escolha depende se a via tem um ou dois sentidos de fluxo.
+- Para o cálculo de quantidade de tachões, use sempre 4 unidades por metro linear (25cm cada), sem espaçamento entre eles (ex: 50 metros = 200 tachões), a menos que o cliente solicite algo diferente.
 
 RESPOSTA OBRIGATÓRIA (JSON):
 {
