@@ -71,6 +71,14 @@ REGRAS GERAIS:
 - Faça apenas uma pergunta por vez
 - NUNCA pergunte algo que o cliente já respondeu ou que pode ser inferido do contexto. Sempre verifique o histórico.
 
+REGRAS DE CONTEXTO E COERÊNCIA:
+- Analise SEMPRE o histórico completo da conversa antes de responder.
+- NUNCA pergunte algo que o cliente já respondeu anteriormente na conversa.
+- NUNCA faça perguntas contraditórias. Se o cliente disse que NÃO usa o produto, NÃO pergunte "com qual frequência compra" - isso soa robótico e desumano.
+- Quando o cliente indicar que NÃO USA ou NÃO CONHECE o produto, reformule a pergunta para algo como: "Entendi. Para fins de orçamento, qual seria a quantidade que você precisaria?" ou "Certo. Qual o volume aproximado que você gostaria de adquirir?".
+- Adapte as perguntas de qualificação conforme a situação do cliente. Se ele é novo, pergunte sobre necessidade. Se já é cliente, pergunte sobre quantidades e prazos.
+- Mantenha coerência: se o cliente respondeu "não" a uma pergunta, leve isso em conta nas próximas perguntas.
+
 IMPORTANTE:
 - NUNCA responda como "especialista em soluções plásticas" no primeiro contato
 - Analise a mensagem do cliente e responda de forma contextualizada
@@ -174,6 +182,14 @@ REGRAS DE COMPORTAMENTO:
 - Analise a mensagem do cliente e responda de forma contextualizada
 - Antes de fazer uma pergunta do fluxo, valide se a informação já foi fornecida. Se o cliente disse o uso (ex: farmácia), não pergunte a finalidade.
 
+REGRAS DE CONTEXTO E COERÊNCIA:
+- Analise SEMPRE o histórico completo da conversa antes de responder.
+- NUNCA pergunte algo que o cliente já respondeu anteriormente na conversa.
+- NUNCA faça perguntas contraditórias. Se o cliente disse que NÃO usa o produto, NÃO pergunte "com qual frequência compra" - isso soa robótico e desumano.
+- Quando o cliente indicar que NÃO USA ou NÃO CONHECE o produto, reformule a pergunta para algo como: "Entendi. Para fins de orçamento, qual seria a quantidade que você precisaria?" ou "Certo. Qual o volume aproximado que você gostaria de adquirir?".
+- Adapte as perguntas de qualificação conforme a situação do cliente. Se ele é novo, pergunte sobre necessidade. Se já é cliente, pergunte sobre quantidades e prazos.
+- Mantenha coerência: se o cliente respondeu "não" a uma pergunta, leve isso em conta nas próximas perguntas.
+
 AÇÕES ESPECÍFICAS:
 - Se identificar produto de plástico (pallets, lixeiras, cones, etc), informe no JSON "tipo": "plástico"
 - Sempre que um cliente quiser um produto de resina ou injetada, ofereça as colas em catálogo
@@ -236,6 +252,21 @@ async function processCustomerMessage(
     console.error("Erro AI:", error);
     return null;
   }
+}
+
+async function checkForNewMessages(supabase: any, sessionId: string, sinceTime: Date): Promise<boolean> {
+  const { data: newMessages } = await supabase
+    .from("smclick_messages")
+    .select("role, content, created_at")
+    .eq("session_id", sessionId)
+    .gt("created_at", sinceTime.toISOString())
+    .order("created_at", { ascending: false });
+  
+  if (newMessages && newMessages.length > 0) {
+    const hasUserMessage = newMessages.some(m => m.role === "user");
+    return hasUserMessage;
+  }
+  return false;
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -301,6 +332,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (fromMe || session.is_human_attending) return res.status(200).json({ status: "success", message: "Recorded" });
+
+    const messageReceivedTime = new Date();
+    console.log("13. Mensagem recebida, aguardando 2 segundos para verificar mensagens consecutivas...");
+
+    await sleep(2000);
+    
+    const hasNewUserMessage = await checkForNewMessages(supabase, session.id, messageReceivedTime);
+    if (hasNewUserMessage) {
+      console.log("13b. Nova mensagem do usuário detectada, cancelando resposta anterior e processando nova mensagem");
+      return res.status(200).json({ status: "success", message: "New message received, waiting for next processing" });
+    }
 
     const { data: historyData } = await supabase.from("smclick_messages").select("role, content").eq("session_id", session.id).order("created_at", { ascending: false }).limit(15);
     const pastMessages = historyData ? historyData.reverse().slice(0, -1) : [];
