@@ -279,6 +279,19 @@ async function detectCorrection(
   userMessage: string,
   sessionId: string
 ): Promise<{ isCorrection: boolean; lastAIMessage?: string }> {
+  const normalizedMessage = userMessage.toLowerCase().trim();
+  
+  const correctionPhrases = [
+    "informação errada",
+    "informação incorreta"
+  ];
+  
+  const isCorrection = correctionPhrases.some(phrase => 
+    normalizedMessage.includes(phrase)
+  );
+  
+  if (!isCorrection) return { isCorrection: false };
+
   try {
     const { data: lastMessages } = await supabase
       .from("smclick_messages")
@@ -292,59 +305,12 @@ async function detectCorrection(
     const lastAIMessage = lastMessages.find(m => m.role === "bot")?.content;
     if (!lastAIMessage) return { isCorrection: false };
 
-    const recentHistory = lastMessages
-      .slice(0, 6)
-      .reverse()
-      .map((m: any) => `${m.role === 'user' ? 'Cliente' : 'IA'}: ${m.content}`)
-      .join('\n');
-
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
-    
-    const correctionPrompt = `Analise a mensagem do cliente e determine se ele está corrigindo alguma informação passada anteriormente pela IA.
-
-Mensagem do cliente: "${userMessage}"
-
-Última mensagem da IA: "${lastAIMessage}"
-
-Histórico recente:
-${recentHistory}
-
-Responda em JSON:
-{
-  "isCorrection": true/false
-}
-
-A mensagem é uma correção se o cliente:
-- Disser que a informação está errada ou incorreta
-- Fornecer informação diferente da passada pela IA
-- Contestar algo que a IA disse
-- Corrigir valores, nomes, prazos, especificações técnicas, etc.
-- Usar termos como "na verdade", "não é bem assim", "está errado", "incorreto"
-
-Não considere correção apenas pedidos de esclarecimento ou dúvidas gerais.`;
-
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [{ role: "user", parts: [{ text: correctionPrompt }] }],
-      config: {
-        responseMimeType: "application/json",
-        responseSchema: { 
-          type: Type.OBJECT, 
-          properties: { isCorrection: { type: Type.BOOLEAN } }, 
-          required: ["isCorrection"] 
-        },
-      },
-    });
-    
-    if (response.text) {
-      const result = JSON.parse(response.text);
-      return {
-        isCorrection: result.isCorrection || false,
-        lastAIMessage
-      };
-    }
+    return {
+      isCorrection: true,
+      lastAIMessage
+    };
   } catch (error) {
-    console.error("Erro ao detectar correção:", error);
+    console.error("Erro ao buscar última mensagem da IA:", error);
   }
   
   return { isCorrection: false };
