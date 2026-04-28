@@ -307,14 +307,41 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     if (!smclick_id) return res.status(400).json({ error: "Missing contact id" });
 
-    console.log("6. Buscando/criando sessao...");
+    console.log("6. Buscando sessao existente...");
     let { data: session, error: sessionError } = await supabase
       .from("smclick_sessions")
-      .upsert({ smclick_id, phone: telefone, is_human_attending: false }, { onConflict: 'smclick_id' })
-      .select()
+      .select("*")
+      .eq("smclick_id", smclick_id)
       .maybeSingle();
     
-    console.log("7. Sessao:", session ? "OK" : "Erro", "SessionError:", sessionError);
+    console.log("7. Sessao existente:", session ? "Encontrada" : "Nao encontrada", "Error:", sessionError);
+
+    if (!session) {
+      console.log("8. Criando nova sessao...");
+      const { data: newSession, error: insertError } = await supabase
+        .from("smclick_sessions")
+        .insert({ smclick_id, phone: telefone, is_human_attending: false })
+        .select()
+        .single();
+      
+      console.log("9. Nova sessao criada:", !!newSession, "Insert Error:", insertError);
+      
+      if (insertError) {
+        if (insertError.code === '23505') { // Unique violation
+          console.log("9b. Sessao já existe (conflito), buscando novamente...");
+          const { data: existingSession } = await supabase
+            .from("smclick_sessions")
+            .select("*")
+            .eq("smclick_id", smclick_id)
+            .maybeSingle();
+          session = existingSession;
+        } else {
+          session = newSession;
+        }
+      } else {
+        session = newSession;
+      }
+    }
     
     if (!session) {
       console.log("10. Falha ao criar/obter sessao");
