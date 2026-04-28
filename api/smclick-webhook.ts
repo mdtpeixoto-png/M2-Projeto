@@ -269,51 +269,9 @@ async function checkForNewMessages(supabase: any, sessionId: string, sinceTime: 
   return false;
 }
 
-async function resetSession(supabase: any, sessionId: string): Promise<void> {
-  await supabase.from("smclick_messages").delete().eq("session_id", sessionId);
-  await supabase.from("smclick_sessions").update({ is_human_attending: false }).eq("id", sessionId);
-}
-
-async function detectCorrection(
-  supabase: any,
-  userMessage: string,
-  sessionId: string
-): Promise<{ isCorrection: boolean; lastAIMessage?: string }> {
-  const normalizedMessage = userMessage.toLowerCase().trim();
-  
-  const correctionPhrases = [
-    "informação errada",
-    "informação incorreta"
-  ];
-  
-  const isCorrection = correctionPhrases.some(phrase => 
-    normalizedMessage.includes(phrase)
-  );
-  
-  if (!isCorrection) return { isCorrection: false };
-
-  try {
-    const { data: lastMessages } = await supabase
-      .from("smclick_messages")
-      .select("role, content")
-      .eq("session_id", sessionId)
-      .order("created_at", { ascending: false })
-      .limit(10);
-
-    if (!lastMessages || lastMessages.length === 0) return { isCorrection: false };
-
-    const lastAIMessage = lastMessages.find(m => m.role === "bot")?.content;
-    if (!lastAIMessage) return { isCorrection: false };
-
-    return {
-      isCorrection: true,
-      lastAIMessage
-    };
-  } catch (error) {
-    console.error("Erro ao buscar última mensagem da IA:", error);
-  }
-  
-  return { isCorrection: false };
+async function isCorrectionMessage(text: string): Promise<boolean> {
+  const normalized = text.toLowerCase().trim();
+  return normalized.includes("informação errada") || normalized.includes("informação incorreta");
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -379,32 +337,42 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (fromMe || session.is_human_attending) return res.status(200).json({ status: "success", message: "Recorded" });
 
     // DETECÇÃO DE CORREÇÃO
-    console.log("12c. Verificando se mensagem é correção...");
-    const correctionCheck = await detectCorrection(supabase, text, session.id);
-    
-    if (correctionCheck.isCorrection && correctionCheck.lastAIMessage) {
-      console.log("12d. Correção detectada! Salvando e reiniciando sessão...");
+    if (await isCorrectionMessage(text)) {
+      console.log("12c. Correção detectada! Buscando última mensagem da IA...");
       
-      const { data: contactData } = await supabase
-        .from("smclick_sessions")
-        .select("phone")
-        .eq("id", session.id)
-        .maybeSingle();
+      const { data: lastMessages } = await supabase
+        .from("smclick_messages")
+        .select("role, content")
+        .eq("session_id", session.id)
+        .order("created_at", { ascending: false })
+        .limit(10);
       
-      const { data: contact } = contactData?.phone 
-        ? await supabase.from("contatos").select("id").eq("telefone", contactData.phone).maybeSingle()
-        : { data: null };
+      const lastAIMessage = lastMessages?.find(m => m.role === "bot")?.content;
+      
+      if (lastAIMessage) {
+        const { data: contactData } = await supabase
+          .from("smclick_sessions")
+          .select("phone")
+          .eq("id", session.id)
+          .maybeSingle();
+        
+        const { data: contact } = contactData?.phone 
+          ? await supabase.from("contatos").select("id").eq("telefone", contactData.phone).maybeSingle()
+          : { data: null };
 
-      await supabase.from("ia_correcoes").insert({
-        session_id: session.id,
-        contact_id: contact?.id || null,
-        mensagem_ia: correctionCheck.lastAIMessage,
-        mensagem_correcao: text,
-        contexto: "Correção detectada automaticamente durante atendimento"
-      });
+        await supabase.from("ia_correcoes").insert({
+          session_id: session.id,
+          contact_id: contact?.id || null,
+          mensagem_ia: lastAIMessage,
+          mensagem_correcao: text,
+          contexto: "Correção detectada durante atendimento"
+        });
+      }
 
-      await resetSession(supabase, session.id);
+      await supabase.from("smclick_messages").delete().eq("session_id", session.id);
+      await supabase.from("smclick_sessions").update({ is_human_attending: false }).eq("id", session.id);
       
+      console.log("12d. Sessão reiniciada após correção");
       return res.status(200).json({ 
         status: "success", 
         message: "Correction detected, session reset", 
