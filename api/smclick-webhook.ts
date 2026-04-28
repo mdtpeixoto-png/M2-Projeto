@@ -269,6 +269,87 @@ async function checkForNewMessages(supabase: any, sessionId: string, sinceTime: 
   return false;
 }
 
+async function resetSession(supabase: any, sessionId: string): Promise<void> {
+  await supabase.from("smclick_messages").delete().eq("session_id", sessionId);
+  await supabase.from("smclick_sessions").update({ is_human_attending: false }).eq("id", sessionId);
+}
+
+async function detectCorrection(
+  supabase: any,
+  userMessage: string,
+  sessionId: string
+): Promise<{ isCorrection: boolean; lastAIMessage?: string }> {
+  try {
+    const { data: lastMessages } = await supabase
+      .from("smclick_messages")
+      .select("role, content")
+      .eq("session_id", sessionId)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
+    if (!lastMessages || lastMessages.length === 0) return { isCorrection: false };
+
+    const lastAIMessage = lastMessages.find(m => m.role === "bot")?.content;
+    if (!lastAIMessage) return { isCorrection: false };
+
+    const recentHistory = lastMessages
+      .slice(0, 6)
+      .reverse()
+      .map((m: any) => `${m.role === 'user' ? 'Cliente' : 'IA'}: ${m.content}`)
+      .join('\n');
+
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+    
+    const correctionPrompt = `Analise a mensagem do cliente e determine se ele está corrigindo alguma informação passada anteriormente pela IA.
+
+Mensagem do cliente: "${userMessage}"
+
+Última mensagem da IA: "${lastAIMessage}"
+
+Histórico recente:
+${recentHistory}
+
+Responda em JSON:
+{
+  "isCorrection": true/false
+}
+
+A mensagem é uma correção se o cliente:
+- Disser que a informação está errada ou incorreta
+- Fornecer informação diferente da passada pela IA
+- Contestar algo que a IA disse
+- Corrigir valores, nomes, prazos, especificações técnicas, etc.
+- Usar termos como "na verdade", "não é bem assim", "está errado", "incorreto"
+
+Não considere correção apenas pedidos de esclarecimento ou dúvidas gerais.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      contents: [{ role: "user", parts: [{ text: correctionPrompt }] }],
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: { 
+          type: Type.OBJECT, 
+          properties: { isCorrection: { type: Type.BOOLEAN } }, 
+          required: ["isCorrection"] 
+        },
+      },
+    });
+    
+    if (response.text) {
+      const result = JSON.parse(response.text);
+      return {
+        isCorrection: result.isCorrection || false,
+        lastAIMessage
+      };
+    }
+  } catch (error) {
+    console.error("Erro ao detectar correção:", error);
+  }
+  
+  return { isCorrection: false };
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   console.log("1. INICIO - Body:", JSON.stringify(req.body)?.slice(0, 200));
   
@@ -332,6 +413,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     if (fromMe || session.is_human_attending) return res.status(200).json({ status: "success", message: "Recorded" });
+
+    // DETECÇÃO DE CORREÇÃO
+    console.log("12c. Verificando se mensagem é correção...");
+    const correctionCheck = await detectCorrection(supabase, text, session.id);
+    
+    if (correctionCheck.isCorrection && correctionCheck.lastAIMessage) {
+      console.log("12d. Correção detectada! Salvando e reiniciando sessão...");
+      
+      const { data: contactData } = await supabase
+        .from("smclick_sessions")
+        .select("phone")
+        .eq("id", session.id)
+        .maybeSingle();
+      
+      const { data: contact } = contactData?.phone 
+        ? await supabase.from("contatos").select("id").eq("telefone", contactData.phone).maybeSingle()
+        : { data: null };
+
+      await supabase.from("ia_correcoes").insert({
+        session_id: session.id,
+        contact_id: contact?.id || null,
+        mensagem_ia: correctionCheck.lastAIMessage,
+        mensagem_correcao: text,
+        contexto: "Correção detectada automaticamente durante atendimento"
+      });
+
+      await resetSession(supabase, session.id);
+      
+      return res.status(200).json({ 
+        status: "success", 
+        message: "Correction detected, session reset", 
+        correction: true 
+      });
+    }
 
     const messageReceivedTime = new Date();
     console.log("13. Mensagem recebida, aguardando 2 segundos para verificar mensagens consecutivas...");
