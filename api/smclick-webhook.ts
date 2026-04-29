@@ -285,25 +285,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
-    console.log("2. ENV - URL:", supabaseUrl ? "OK" : "MISSING", "KEY:", supabaseKey ? "OK" : "MISSING");
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    const isServiceRole = !!process.env.SUPABASE_SERVICE_ROLE_KEY;
+    
+    console.log("2. ENV - URL:", supabaseUrl ? "OK" : "MISSING", "KEY Type:", isServiceRole ? "SERVICE_ROLE" : "ANON");
     
     if (!supabaseUrl || !supabaseKey) return res.status(500).json({ error: "Missing DB credentials" });
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     console.log("3. Supabase client criado");
     
-    const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+    let body;
+    try {
+      if (typeof req.body === 'string') {
+        // Tenta consertar JSON quebrado pelo n8n (substituindo enters por espaços dentro de aspas)
+        const sanitizedRaw = req.body.replace(/:\s*"([^"]*)"/g, (match, p1) => {
+          return ': "' + p1.replace(/\n/g, ' ').replace(/\r/g, ' ') + '"';
+        });
+        body = JSON.parse(sanitizedRaw);
+      } else {
+        body = req.body;
+      }
+    } catch (e) {
+      console.error("Erro ao dar parse no body, tentando fallback manual:", e);
+      // Se falhar, tentamos o body original se for objeto
+      body = typeof req.body === 'object' ? req.body : null;
+      if (!body) return res.status(400).json({ error: "Invalid JSON structure" });
+    }
+    
     const infos = body?.infos?.chat || body?.chat;
-    console.log("4. Body parsed - infos:", !!infos);
-
     if (!infos) return res.status(400).json({ error: "Invalid payload" });
 
-    const text = infos.last_message?.content?.text || "";
+    // Garante que o texto seja uma linha única para o banco de dados
+    let text = (infos.last_message?.content?.text || "").replace(/\r?\n/g, " ").trim();
     const smclick_id = infos.contact?.id || "";
     const telefone = infos.contact?.telephone || "";
     const fromMe = infos.last_message?.from_me || false;
-    console.log("5. Dados extraidos - smclick_id:", smclick_id, "telefone:", telefone, "text:", text?.slice(0, 50));
+    
+    console.log("5. Dados extraidos - smclick_id:", smclick_id, "text formatado:", text?.slice(0, 50));
 
     if (!smclick_id) return res.status(400).json({ error: "Missing contact id" });
 
@@ -324,9 +343,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .select()
         .single();
       
-      console.log("9. Nova sessao criada:", !!newSession, "Insert Error:", insertError);
-      
       if (insertError) {
+        console.error("9. Erro ao criar sessao:", insertError);
         if (insertError.code === '23505') { // Unique violation
           console.log("9b. Sessao já existe (conflito), buscando novamente...");
           const { data: existingSession } = await supabase
@@ -336,9 +354,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
             .maybeSingle();
           session = existingSession;
         } else {
-          session = newSession;
+          // Fallback if select single failed but record might exist
+          const { data: retrySession } = await supabase
+            .from("smclick_sessions")
+            .select("*")
+            .eq("smclick_id", smclick_id)
+            .maybeSingle();
+          session = retrySession;
         }
       } else {
+        console.log("9. Nova sessao criada com sucesso");
         session = newSession;
       }
     }
